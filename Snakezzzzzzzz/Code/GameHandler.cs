@@ -1,22 +1,19 @@
 ﻿using Newtonsoft.Json;
 using Snakezzzzzzzz.Models;
-using System.Diagnostics;
-using System.Linq;
 using System.Net.WebSockets;
-using System.Threading;
 using System.Threading.Tasks;
 using WebSocketManager;
-using WebSocketManager.Common;
 
 namespace Snakezzzzzzzz.Code
 {
 	public class GameHandler : WebSocketHandler
 	{
-		private GameManager manager = GameManager.Instance;
+		private GameManager manager;
 
-		public GameHandler(WebSocketConnectionManager webSocketConnectionManager) : base(webSocketConnectionManager)
+		public GameHandler(WebSocketConnectionManager webSocketConnectionManager, GameManager manager, SingleTimer timer) : base(webSocketConnectionManager)
 		{
-			new Timer(Callback, null, 0, 1000 / 15);
+			timer.Run(Callback);
+			this.manager = manager;
 		}
 
 		private void Callback(object state)
