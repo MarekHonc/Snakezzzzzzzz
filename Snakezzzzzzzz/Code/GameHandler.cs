@@ -18,7 +18,7 @@ namespace Snakezzzzzzzz.Code
 
 		private void Callback(object state)
 		{
-			var listOfSnakes = JsonConvert.SerializeObject(manager.Snakes.Values);
+			var listOfSnakes = JsonConvert.SerializeObject(this.manager.Snakes.Values);
 			this.InvokeClientMethodToAllAsync("GetSnakes", listOfSnakes).Wait();
 		}
 
@@ -27,13 +27,31 @@ namespace Snakezzzzzzzz.Code
 			var listOfSnakes = JsonConvert.SerializeObject(manager.Snakes.Values);
 		}
 
-		public async Task ConnectSnake(string id, string serializedSnake)
+		public async Task ConnectSnake(string id, string serializedSnake, string fieldDimensions)
 		{
 			var snake = JsonConvert.DeserializeObject<Snake>(serializedSnake);
 			var exists = this.manager.Snakes.ContainsKey(id);
 
 			if (!exists)
 				this.manager.Snakes.TryAdd(id, snake);
+
+			if (!this.manager.Apple.IsGenerated)
+			{
+				var convertedDimenstions = JsonConvert.DeserializeObject<int[]>(fieldDimensions);
+				this.manager.Apple.GenerateNew(convertedDimenstions[0], convertedDimenstions[1]);
+			}
+
+			var apple = JsonConvert.SerializeObject(this.manager.Apple);
+			await this.InvokeClientMethodAsync(id, "SpawnApple", new[] { apple });
+		}
+
+		public async Task RespawnApple(string fieldDimensions)
+		{
+			var convertedDimenstions = JsonConvert.DeserializeObject<int[]>(fieldDimensions);
+			this.manager.Apple.GenerateNew(convertedDimenstions[0], convertedDimenstions[1]);
+
+			var apple = JsonConvert.SerializeObject(this.manager.Apple);
+			await this.InvokeClientMethodToAllAsync("SpawnApple", apple);
 		}
 
 		public async Task DisconnectSnake(string id, string serializedSnake)

@@ -10,22 +10,29 @@ window.onload = function () {
 
 	map = new Map();
 	snake = new Snake();
-	apple = new Apple(15, 15);
 
 	connection = new WebSocketManager.Connection("ws://localhost:8000/server");
 
 	connection.connectionMethods.onConnected = () => {
 		snake.id = connection.connectionId;
-		connection.invoke("ConnectSnake", connection.connectionId, JSON.stringify(snake));
+		connection.invoke("ConnectSnake", connection.connectionId, JSON.stringify(snake), JSON.stringify([Math.floor(Math.random() * map.tilecount), Math.floor(Math.random() * map.tilecount)]));
 	}
-
-	connection.clientMethods["GetSnakes"] = (sersnakes) => {
-		snakes = JSON.parse(sersnakes);
-		console.log(snakes);
-	};
 
 	connection.connectionMethods.onDisconnected = () => {
 		connection.invoke("DisconnectSnake", connection.connectionId, JSON.stringify(snake));
+	}
+
+	window.addEventListener('beforeunload', function (event) {
+		connection.invoke("DisconnectSnake", connection.connectionId, JSON.stringify(snake));
+	}, false);
+
+	connection.clientMethods["GetSnakes"] = (sersnakes) => {
+		snakes = JSON.parse(sersnakes);
+	};
+
+	connection.clientMethods["SpawnApple"] = (newApple) => {
+		var appleObj = JSON.parse(newApple);
+		apple = new Apple(appleObj.x, appleObj.y);
 	}
 
 	connection.start();
@@ -38,7 +45,7 @@ function Snake() {
 	this.id = "";
 	this.x = Math.floor(Math.random() * map.tilecount);
 	this.y = Math.floor(Math.random() * map.tilecount);
-	this.xvel = 0;
+	this.xvel = 1;
 	this.yvel = 0;
 	this.tail = 5;
 	this.trail = [];
@@ -54,7 +61,7 @@ Snake.prototype.die = function () {
 
 function Map() {
 	this.gridsize = 20;
-	this.tilecount = 20;
+	this.tilecount = 40;
 }
 
 function Apple(x, y) {
@@ -62,26 +69,25 @@ function Apple(x, y) {
 	this.y = y;
 }
 
-Apple.prototype.eaten = function () {
-	this.x = Math.floor(Math.random() * map.tilecount);
-	this.y = Math.floor(Math.random() * map.tilecount);
-}
-
 function game() {
 	snake.x += snake.xvel;
 	snake.y += snake.yvel;
+
 	if (snake.x < 0) {
 		snake.x = map.tilecount - 1;
 	}
+
 	if (snake.x > map.tilecount - 1) {
 		snake.x = 0;
 	}
 	if (snake.y < 0) {
 		snake.y = map.tilecount - 1;
 	}
+
 	if (snake.y > map.tilecount - 1) {
 		snake.y = 0;
 	}
+
 	ctx.fillStyle = "black";
 	ctx.fillRect(0, 0, canv.width, canv.height);
 
@@ -94,8 +100,8 @@ function game() {
 		}
 	});
 
-
 	ctx.fillStyle = "orange";
+
 	for (var i = 0; i < snake.trail.length; i++) {
 		ctx.fillRect(snake.trail[i].x * map.gridsize, snake.trail[i].y * map.gridsize, map.gridsize - 2, map.gridsize - 2);
 		if (snake.trail[i].x == snake.x && snake.trail[i].y == snake.y) {
@@ -107,19 +113,18 @@ function game() {
 		snake.trail.shift();
 	}
 
-	//if (connection.socket.readyState == 1) {
-		connection.invoke("Move", connection.connectionId, JSON.stringify(snake));
-	//}
+	connection.invoke("Move", connection.connectionId, JSON.stringify(snake));
 
-
-	if (apple.x == snake.x && apple.y == snake.y) {
-		snake.tail++;
-		apple.x = Math.floor(Math.random() * map.tilecount);
-		apple.y = Math.floor(Math.random() * map.tilecount);
+	if (apple != undefined) {
+		if (apple.x == snake.x && apple.y == snake.y) {
+			snake.tail++;
+			connection.invoke("RespawnApple", JSON.stringify([Math.floor(Math.random() * map.tilecount), Math.floor(Math.random() * map.tilecount)]));
+		}
+		ctx.fillStyle = "red";
+		ctx.fillRect(apple.x * map.gridsize, apple.y * map.gridsize, map.gridsize - 2, map.gridsize - 2);
 	}
-	ctx.fillStyle = "red";
-	ctx.fillRect(apple.x * map.gridsize, apple.y * map.gridsize, map.gridsize - 2, map.gridsize - 2);
 }
+
 function keyPush(evt) {
 	switch (evt.keyCode) {
 		case 37:
