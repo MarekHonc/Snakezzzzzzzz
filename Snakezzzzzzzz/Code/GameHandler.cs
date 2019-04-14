@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Snakezzzzzzzz.Models;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Threading.Tasks;
 using WebSocketManager;
@@ -20,11 +21,6 @@ namespace Snakezzzzzzzz.Code
 		{
 			var listOfSnakes = JsonConvert.SerializeObject(this.manager.Snakes.Values);
 			this.InvokeClientMethodToAllAsync("GetSnakes", listOfSnakes).Wait();
-		}
-
-		private async Task GetSnakes(object state)
-		{
-			var listOfSnakes = JsonConvert.SerializeObject(manager.Snakes.Values);
 		}
 
 		public async Task ConnectSnake(string id, string serializedSnake, string fieldDimensions)
@@ -54,7 +50,7 @@ namespace Snakezzzzzzzz.Code
 			await this.InvokeClientMethodToAllAsync("SpawnApple", apple);
 		}
 
-		public async Task DisconnectSnake(string id, string serializedSnake)
+		public async Task DisconnectSnake(string id)
 		{
 			this.manager.Snakes.TryRemove(id, out Snake removedSnake);
 		}
@@ -70,6 +66,25 @@ namespace Snakezzzzzzzz.Code
 				existingSnake.Y = snake.Y;
 				existingSnake.Tail = snake.Tail;
 				existingSnake.Trail = snake.Trail;
+			}
+
+			await this.CheckCollisions(id);
+		}
+
+		private async Task CheckCollisions(string id)
+		{
+			var exists = this.manager.Snakes.ContainsKey(id);
+
+			if (exists)
+			{
+				var currentSnake = this.manager.Snakes[id];
+				var coordinates = this.manager.Snakes.Values.SelectMany(x => x.Trail).ToArray();
+
+				if(coordinates.Count(c => c.x == currentSnake.X && c.y == currentSnake.Y) > 1)
+				{
+					await this.DisconnectSnake(id);
+					await this.InvokeClientMethodAsync(id, "SnakeCollision", new[] { currentSnake });
+				}
 			}
 		}
 

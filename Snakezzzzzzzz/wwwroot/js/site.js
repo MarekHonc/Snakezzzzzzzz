@@ -3,6 +3,7 @@ var apple;
 var map;
 var snakes = [];
 var connection;
+
 window.onload = function () {
 	canv = document.getElementById("gc");
 	ctx = canv.getContext("2d");
@@ -19,11 +20,11 @@ window.onload = function () {
 	}
 
 	connection.connectionMethods.onDisconnected = () => {
-		connection.invoke("DisconnectSnake", connection.connectionId, JSON.stringify(snake));
+		connection.invoke("DisconnectSnake", connection.connectionId);
 	}
 
 	window.addEventListener('beforeunload', function (event) {
-		connection.invoke("DisconnectSnake", connection.connectionId, JSON.stringify(snake));
+		connection.invoke("DisconnectSnake", connection.connectionId);
 	}, false);
 
 	connection.clientMethods["GetSnakes"] = (sersnakes) => {
@@ -35,11 +36,14 @@ window.onload = function () {
 		apple = new Apple(appleObj.x, appleObj.y);
 	}
 
+	connection.clientMethods["SnakeCollision"] = (snake) => {
+		window.location.href = "/GameOver";
+	}
+
 	connection.start();
 
 	setInterval(game, 1000 / 15);
 }
-
 
 function Snake() {
 	this.id = "";
@@ -70,9 +74,11 @@ function Apple(x, y) {
 }
 
 function game() {
+	// Move
 	snake.x += snake.xvel;
 	snake.y += snake.yvel;
 
+	// Edges of map
 	if (snake.x < 0) {
 		snake.x = map.tilecount - 1;
 	}
@@ -91,6 +97,7 @@ function game() {
 	ctx.fillStyle = "black";
 	ctx.fillRect(0, 0, canv.width, canv.height);
 
+	// Add snakes
 	snakes.forEach(function (sna) {
 		if (sna.id != snake.id) {
 			for (var i = 0; i < sna.trail.length; i++) {
@@ -102,6 +109,7 @@ function game() {
 
 	ctx.fillStyle = "orange";
 
+	// Render current snake
 	for (var i = 0; i < snake.trail.length; i++) {
 		ctx.fillRect(snake.trail[i].x * map.gridsize, snake.trail[i].y * map.gridsize, map.gridsize - 2, map.gridsize - 2);
 		if (snake.trail[i].x == snake.x && snake.trail[i].y == snake.y) {
@@ -113,8 +121,10 @@ function game() {
 		snake.trail.shift();
 	}
 
+	// Notify server
 	connection.invoke("Move", connection.connectionId, JSON.stringify(snake));
 
+	// Get apple
 	if (apple != undefined) {
 		if (apple.x == snake.x && apple.y == snake.y) {
 			snake.tail++;

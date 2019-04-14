@@ -33,7 +33,7 @@ namespace Snakezzzzzzzz.Models
 		}
 
 		[JsonProperty("trail")]
-		public object[] Trail
+		public dynamic[] Trail
 		{
 			get;
 			set;
